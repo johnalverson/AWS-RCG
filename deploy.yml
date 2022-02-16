@@ -1,0 +1,60 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.7
+  pre_build:
+    commands:
+      - echo Entered the build phase...
+      - echo Build started on `date`
+      - BUILD_KEY=$(echo "/build-number/$PREFIX-$REPO-$BRANCH")
+      - BUILD_NUMBER=$(aws ssm get-parameter --name $BUILD_KEY --query 'Parameter.Value' --output text)
+      - DEPLOY_ENV=$BRANCH
+      - TAG="$BUILD_NUMBER"
+      - echo Build Number - $TAG
+      - echo Deployment environment - $DEPLOY_ENV
+      - pip install aws-sam-cli -q
+  build:
+    commands:
+      - STACK_PREFIX=$(echo "$PREFIX-$REPO-$BRANCH")
+      
+      # - cd redshift-manager-app
+      # - aws cloudformation package --template-file template.yaml --s3-bucket $STAGING_BUCKET --output-template-file outputtemplate-build.yaml
+      # - APP_NAME=$(echo "redshift")
+      # - aws cloudformation deploy --template-file outputtemplate-build.yaml --s3-bucket $STAGING_BUCKET --stack-name $STACK_PREFIX-$APP_NAME --parameter-overrides "Prefix=$STACK_PREFIX" "AppName=$APP_NAME" --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset
+      # - cd ..
+
+      # - aws cloudformation delete-stack --stack-name autopipe-commercial-engine-production-redshift
+      # - aws cloudformation delete-stack --stack-name autopipe-commercial-engine-production-analytics-base
+      - aws cloudformation delete-stack --stack-name autopipe-commercial-engine-production-analytics
+
+      - cd aws-glue
+      - sam build --template setup.yaml
+      - sam package --template-file .aws-sam/build/template.yaml --s3-bucket $STAGING_BUCKET --output-template-file outputtemplate-setup.yaml
+      - APP_NAME=$(echo "analytics-base")
+      - sam deploy --template-file outputtemplate-setup.yaml --s3-bucket $STAGING_BUCKET --stack-name $STACK_PREFIX-$APP_NAME --parameter-overrides "Prefix=$STACK_PREFIX" "AppName=$APP_NAME" "RedshiftSecret=analytics-conn-info-redshift-$BRANCH" --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset
+
+      - GlueJobsRoleArn=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`GlueJobsRoleArn`].OutputValue' --output text)
+      - S3GlueSourceDataBucketName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`S3GlueSourceDataBucketName`].OutputValue' --output text)
+      - S3GlueScriptsBucketName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`S3GlueScriptsBucketName`].OutputValue' --output text)
+      - S3GlueJobLoggingBucketName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`S3GlueJobLoggingBucketName`].OutputValue' --output text)
+      - S3GlueJobTemporaryBucketName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`S3GlueJobTemporaryBucketName`].OutputValue' --output text)
+      - S3GlueJobDriversBucketName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`S3GlueJobDriversBucketName`].OutputValue' --output text)
+      - SQSNomsByCycleRetryQueueName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`SQSNomsByCycleRetryQueueName`].OutputValue' --output text)
+      - SNSNomsByCycleRetryTopicName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`SNSNomsByCycleRetryTopicName`].OutputValue' --output text)
+      - SNSUserNotificationTopicName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`SNSUserNotificationTopicName`].OutputValue' --output text)
+      - RedshiftConnectionName=$(aws cloudformation describe-stacks --stack-name $STACK_PREFIX-$APP_NAME --query 'Stacks[0].Outputs[?OutputKey==`RedshiftConnectionName`].OutputValue' --output text)
+
+      - aws s3 cp ./s3-source/ s3://$S3GlueScriptsBucketName --recursive
+      - aws s3 cp ./drivers/ s3://$S3GlueJobDriversBucketName --recursive
+
+      - aws cloudformation package --template-file template.yaml --s3-bucket $STAGING_BUCKET --output-template-file outputtemplate-build.yaml
+      - APP_NAME=$(echo "analytics")
+      - aws cloudformation deploy --template-file outputtemplate-build.yaml --s3-bucket $STAGING_BUCKET --stack-name $STACK_PREFIX-$APP_NAME --parameter-overrides "Prefix=$STACK_PREFIX" "AppName=$APP_NAME" "GlueJobsRoleArn=$GlueJobsRoleArn" "S3GlueScriptsBucketName=$S3GlueScriptsBucketName" "S3GlueSourceDataBucketName=$S3GlueSourceDataBucketName" "S3GlueJobLoggingBucketName=$S3GlueJobLoggingBucketName" "S3GlueJobTemporaryBucketName=$S3GlueJobTemporaryBucketName" "SQSNomsByCycleRetryQueueName=$SQSNomsByCycleRetryQueueName" "SNSNomsByCycleRetryTopicName=$SNSNomsByCycleRetryTopicName" "SNSUserNotificationTopicName=$SNSUserNotificationTopicName" --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset
+      - cd ..
+
+  post_build:
+    commands:
+      - echo Entered the post_build phase...
+      - echo Build completed on `date`

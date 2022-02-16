@@ -1,0 +1,3858 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'Commercial Engine Analytics Glue Jobs, Crawlers, Triggers, Athena Views and Workflows'
+  
+Parameters:
+  Prefix:
+    Description: REQUIRED, Prefix for all named resources specific to this instantiation of this resource set.
+    Type: String
+    AllowedPattern: ^[a-z][a-z0-9\-]*$
+  AppName:
+    Description: Unique identifier for all resources, must be lowercase 
+    Type: String
+
+  GlueJobsRoleArn:
+    Type: String
+  S3GlueScriptsBucketName:
+    Type: String
+  S3GlueSourceDataBucketName:
+    Type: String
+  S3GlueJobLoggingBucketName:
+    Type: String
+  S3GlueJobTemporaryBucketName:
+    Type: String
+  SQSNomsByCycleRetryQueueName:
+    Type: String
+  SNSNomsByCycleRetryTopicName:
+    Type: String
+  SNSUserNotificationTopicName:
+    Type: String 
+  RedshiftConnectionName:
+    Type: String
+    Default: "autopipe-commercial-engine-dev-analytics-redshift"   
+  GlueDatabaseParm:
+    Type: String
+    Default: "analytics_dev"  
+  GlueEnvironmentParm:
+    Type: String
+    Default: "dev"
+  RedshiftRoleParm:
+    Type: String
+    Default: "arn:aws:iam::886751638440:role/autopipe-NPAPCERedshiftMultinodeClust-RedshiftRole-S07GAT84KTTE"
+  AnrUpSecretName:
+    Type: String
+    Default: "analytics-conn-info-anr-up-prod"
+  AnrDwnSecretName:
+    Type: String
+    Default: "analytics-conn-info-anr-dwn-prod"
+  AnrDwnGSMSecretName:
+    Type: String
+    Default: "analytics-conn-info-anr-dwn-gsm-prod"
+  NavigatesSecretName:
+    Type: String
+    Default: "analytics-conn-info-navigates-prod"
+  TCPlusSecretName:
+    Type: String
+    Default: "analytics-conn-info-tcplus-prod"
+  BisonSecretName:
+    Type: String
+    Default: "analytics-conn-info-bison-prod"
+  NBSecretName:
+    Type: String
+    Default: "analytics-conn-info-nb-prod"
+      
+  ### Tagging V2.0 - START ###
+  tcapplication:
+    Description: CMDB Application 'Name'
+    Type: String
+    Default: Commercial Engine
+  tcappid:
+    Description: CMDB Application 'AID'
+    Type: String
+    Default: "A0361770"
+  tcprojectcode:
+    Description: TransCanada Project Code from SAP
+    Type: String
+    Default: "C.001215"
+  tcenvironment:
+    Type: String
+    Default: "Development"
+    AllowedValues: ["Demonstration", "Training", "Development", "QA", "Test", "Staging", "Production", "Disaster Recovery"]
+  ### Tagging V2.0 - END ###
+
+Resources:
+#####################################
+## Crawlers  
+#####################################
+
+  GlueCrawlerAnalyticsJobLogs:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-crawler.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_job_logging'
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        GlueDatabase: !Sub '${Prefix}-glue-job-logging'
+        TargetPath1: !Sub 's3://${S3GlueJobLoggingBucketName}/anr_dwn'
+        TargetPath2: !Sub 's3://${S3GlueJobLoggingBucketName}/anr_up'
+        TargetPath3: !Sub 's3://${S3GlueJobLoggingBucketName}/bison'
+        TargetPath4: !Sub 's3://${S3GlueJobLoggingBucketName}/navigates'
+        TargetPath5: !Sub 's3://${S3GlueJobLoggingBucketName}/nb'
+        TargetPath6: !Sub 's3://${S3GlueJobLoggingBucketName}/tcplus'
+        TargetPath7: !Sub 's3://${S3GlueJobLoggingBucketName}/maintenance'
+        TargetPath8: !Sub 's3://${S3GlueJobLoggingBucketName}/core'
+        TargetPath9: !Sub 's3://${S3GlueJobLoggingBucketName}/storage'
+        Schedule: ""
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Workflows  
+#####################################
+
+# Workflows: analytics_anr_daily_schedule
+  GlueWorkFlowAnalyticsAnrDailySchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-workflow.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_daily_schedule'
+        Description: ''
+        Property1Value: !Ref GlueEnvironmentParm
+        Property2Value: 'Daily'
+        Property3Value: '9999-01-01'
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Workflows: analytics_navigates_daily_schedule
+  GlueWorkFlowAnalyticsNavigatesDailySchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-workflow.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_daily_schedule'
+        Description: ''
+        Property1Value: !Ref GlueEnvironmentParm
+        Property2Value: 'Daily'
+        Property3Value: '9999-01-01'
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Workflows: analytics_tcplus_daily_schedule
+  GlueWorkFlowAnalyticsTCPlusDailySchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-workflow.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_tcplus_daily_schedule'
+        Description: ''
+        Property1Value: !Ref GlueEnvironmentParm
+        Property2Value: 'Daily'
+        Property3Value: '9999-01-01'
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+##################################################
+## ANR UP - Triggers Scheduled by Time
+##################################################
+
+# Trigger, Scheduled: analytics_anr_up_noms_by_day_hourly_schedule, On the Hour, Run: analytics_anr_up_noms_by_day
+  GlueTriggerAnalyticsAnrUpNomsByDay:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_noms_by_day_hourly_schedule'
+        Description: 'Scheduled Hourly ANR UP Noms By Day'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 * * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpNomsByDay.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_up_monthly_imbalances_0615_schedule, At 11:15 GMT, Run: analytics_analytics_anr_up_monthly_imbalances
+  GlueTriggerAnalyticsAnrUpMonthlyImbalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_monthly_imbalances_0615_schedule'
+        Description: 'Scheduled daily ANR UP Monthly Imbalances Noms By Day'
+        TriggerType: SCHEDULED
+        Schedule: "cron(15 12 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpMonthlyImbalances.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_up_noms_by_day_oba_1pm_schedule, Run: analytics_anr_up_noms_by_day_oba
+  GlueTriggerAnalyticsAnrUpNomsByDayOBA1PM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_noms_by_day_oba_1pm_schedule'
+        Description: 'Scheduled Time ANR UP Noms By Day OBA'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 19 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpNomsByDayOBA.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_up_noms_by_day_oba_515pm_schedule, Run: analytics_anr_up_noms_by_day_oba
+  GlueTriggerAnalyticsAnrUpNomsByDayOBA515PM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_noms_by_day_oba_515pm_schedule'
+        Description: 'Scheduled Time ANR UP Noms By Day OBA'
+        TriggerType: SCHEDULED
+        Schedule: "cron(15 23 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpNomsByDayOBA.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_up_noms_by_day_oba_9pm_schedule, Run: analytics_anr_up_noms_by_day_oba
+  GlueTriggerAnalyticsAnrUpNomsByDayOBA9PM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_noms_by_day_oba_9pm_schedule'
+        Description: 'Scheduled Time ANR UP Noms By Day OBA'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 03 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpNomsByDayOBA.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_up_noms_by_day_oba_10pm_schedule, Run: analytics_anr_up_noms_by_day_oba
+  GlueTriggerAnalyticsAnrUpNomsByDayOBA10PM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_noms_by_day_oba_10pm_schedule'
+        Description: 'Scheduled Time ANR UP Noms By Day OBA'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 04 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpNomsByDayOBA.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_up_noms_by_cycle_adjustments Run: analytics_anr_up_noms_by_cycle_adjustments
+  GlueTriggerAnalyticsAnrUpNomsByCycleAdjustments:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_noms_by_cycle_adjustments_2am_schedule'
+        Description: 'Scheduled Time ANR Up Noms By Cycle Adjustments'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 8 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpNomsByCycleAdjustments.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_up_daily_imbalances Run: analytics_anr_up_daily_imbalances
+  GlueTriggerAnalyticsAnrUpDailyImbalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_analytics_anr_up_daily_imbalances_6am_schedule'
+        Description: 'Scheduled Time ANR Up Daily Imbalances'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 12 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrUpObaDailyImbalances.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+##################################################
+## ANR DWN - Triggers Scheduled by Time
+##################################################
+
+# Trigger, Scheduled: analytics_anr_dwn_storage_activity_by_day_530am_schedule, Run: analytics_anr_dwn_storage_activity_by_day
+  GlueTriggerAnalyticsAnrDwnStorageActivityByDay530AM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_dwn_storage_activity_by_day_530am_schedule'
+        Description: 'Scheduled Time ANR DWN Storage Activity By Day'
+        TriggerType: SCHEDULED
+        Schedule: "cron(30 11 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrDwnStorageDayActivity.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_anr_dwn_pal_daily_balances Run: analytics_anr_dwn_pal_daily_balances
+  GlueTriggerAnalyticsAnrDwnPalDailyBalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_analytics_anr_dwn_pal_daily_balances_2am_schedule'
+        Description: 'Scheduled Time ANR Dwn Pal Daily Balances'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 8 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsAnrDwnPalDailyBalances.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+##################################################
+## Navigates - Triggers Scheduled by Time
+##################################################
+
+# Trigger, Scheduled: analytics_navigates_point_volumes_0430am_schedule, Run: analytics_navigates_point_volumes
+  GlueTriggerAnalyticsNavigatesPointVolumes0430AM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_point_volumes_0430am_schedule'
+        Description: 'Scheduled Time Navigates Point Volumes'
+        TriggerType: SCHEDULED
+        Schedule: "cron(30 10 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsNavigatesPointVolumes.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: _navigates_oba_daily_imbalances_0200am_schedule, Run: analytics_navigates_oba_daily_imbalances
+  GlueTriggerAnalyticsNavigatesOBADailyImbalances0200AM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_oba_daily_imbalances_0200am_schedule'
+        Description: 'Scheduled Time Navigates OBA Daily Imbalances'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 8 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsNavigatesOBADailyImbalances.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_navigates_rate_schedule_0200am_schedule, Run: analytics_navigates_rate_schedule
+  GlueTriggerAnalyticsNavigatesRateSchedules0200AM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_rate_schedule_0200am_schedule'
+        Description: 'Scheduled Time Navigates Rate Schedule'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 8 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsNavigatesRateSchedule.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+##################################################
+## TCPlus - Triggers Scheduled by Time
+##################################################
+
+# Trigger, Scheduled:analytics_tcplus_oba_daily_imbalances_0200am_schedule, Run: analytics_tcplus_oba_daily_imbalances
+  GlueTriggerAnalyticsTCPlusOBADailyImbalances0200AM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_analytics_tcplus_oba_daily_imbalances_0200am_schedule'
+        Description: 'Scheduled Time TCPlus OBA Daily Imbalances'
+        TriggerType: SCHEDULED
+        Schedule: "cron(00 8 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsTCPlusOBADailyImbalances.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_tcplus_rate_schedule, At 04:30 AM, Run: analytics_tcplus_rate_schedule
+  GlueTriggerAnalyticsTCPlusRateSchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_tcplus_rate_schedule_schedule'
+        Description: 'Scheduled Time TCPus Rate Schedule'
+        TriggerType: SCHEDULED
+        Schedule: "cron(30 10 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsTCPlusRateSchedule.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger, Scheduled: analytics_tcplus_pal_daily_balances, At 04:35 AM, Run: analytics_tcplus_pal_daily_balances
+  GlueTriggerAnalyticsTCPlusPalDailyBalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobonly.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_tcplus_pal_daily_balances'
+        Description: 'Scheduled Time TCPus Pal Daily Balances'
+        TriggerType: SCHEDULED
+        Schedule: "cron(35 10 * * ? *)"
+        GlueJobNameTarget1: !GetAtt GlueJobAnalyticsTCPlusPalDailyBalances.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Workflow Triggers ANR  
+#####################################
+
+# Trigger, Scheduled: analytics_anr_daily_schedule_start, At 02:15 AM, Run: analytics_anr_up_contracts_rates
+  GlueTriggerAnalyticsAnrDailyScheduleStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_daily_schedule_start'
+        Description: 'Scheduled Daily Anr 0215 execute Anr Up Contracts Rates'
+        TriggerType: SCHEDULED
+        Schedule: "cron(15 8 * * ? *)"
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpContractsRates.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_dwn_revenue_start, Predicate: analytics_anr_up_contracts_rates, Run: analytics_anr_dwn_revenue
+  GlueTriggerAnalyticsAnrDwnRevenueStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_dwn_revenue_start'
+        Description: 'Conditional execute Anr Dwn Revenue'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpContractsRates.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrDwnRevenue.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_contracts_firm_storage_start, Predicate: analytics_anr_dwn_revenue, Run: analytics_anr_up_contracts_firm_storage
+  GlueTriggerAnalyticsAnrUpContractsFirmStorageStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_contracts_firm_storage_start'
+        Description: 'Conditional execute Anr Up Contracts Firm Storage'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrDwnRevenue.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpContractsFirmStorage.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_contracts_firm_transport_start, Predicate: analytics_anr_up_contracts_firm_storage, Run: analytics_anr_up_contracts_firm_transport
+  GlueTriggerAnalyticsAnrUpContractsFirmTransportStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_contracts_firm_transport_start'
+        Description: 'Conditional execute Anr Up Contracts Firm Transport'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpContractsFirmStorage.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpContractsFirmTransport.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_contracts_net_mdq_start, Predicate: analytics_anr_up_contracts_firm_transport, Run: analytics_anr_up_contracts_net_mdq
+  GlueTriggerAnalyticsAnrUpContractsNetMDQStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_contracts_net_mdq_start'
+        Description: 'Conditional execute Anr Up Contracts Net MDQ'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpContractsFirmTransport.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpContractsNetMDQ.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_locations_start, Predicate: analytics_anr_up_contracts_net_mdq, Run: analytics_anr_up_locations
+  GlueTriggerAnalyticsAnrUpLocationsStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_locations_start'
+        Description: 'Conditional execute Anr Up Locations'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpContractsNetMDQ.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpLocations.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_locations_etsgroups_start, Predicate: analytics_anr_up_locations, Run: analytics_anr_up_locations_etsgroups
+  GlueTriggerAnalyticsAnrUpLocationsETSGroupsStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_locations_etsgroups_start'
+        Description: 'Conditional execute Anr Up Locations ETS Groups'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpLocations.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpLocationsETSGroups.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_dwn_allocations, Predicate: analytics_anr_up_locations_etsgroups, Run: analytics_anr_dwn_allocations
+  GlueTriggerAnalyticsAnrDwnAllocations:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_dwn_allocations'
+        Description: 'Conditional execute Anr Dwn Allocations'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpLocationsETSGroups.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrDwnAllocations.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_operational_available_capacity, Predicate: analytics_anr_dwn_allocations, Run: analytics_anr_up_operational_available_capacity
+  GlueTriggerAnalyticsAnrUpOperationalAvailableCapacity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_operational_available_capacity'
+        Description: 'Conditional execute Anr Up operational available capacity'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrDwnAllocations.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUpOperationalAvailableCapacity.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_anr_up_rate_schedule, Predicate: analytics_anr_up_operational_available_capacity, Run: analytics_anr_up_rate_schedule
+  GlueTriggerAnalyticsAnrUpRateSchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_anr_up_rate_schedule'
+        Description: 'Conditional execute Anr Up Rate Schedule'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsAnrDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsAnrUpOperationalAvailableCapacity.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsAnrUPRateSchedule.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Workflow Triggers Navigates 
+#####################################
+
+# Trigger, Scheduled: analytics_navigates_daily_schedule_start, At 03:15 AM, Run: analytics_navigates_revenue
+  GlueTriggerAnalyticsNavigatesDailyScheduleStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_daily_schedule_start'
+        Description: 'Scheduled Daily Navigates 0315 execute Navigates Revenue'
+        TriggerType: SCHEDULED
+        Schedule: "cron(15 09 * * ? *)"
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesRevenue.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_points_start, Predicate: analytics_navigates_revenue, Run: analytics_navigates_points
+  GlueTriggerAnalyticsNavigatesPointsStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_points_start'
+        Description: 'Conditional execute Navigates Points'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesRevenue.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesPoints.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_contract_base_start, Predicate: analytics_navigates_points, Run: analytics_navigates_contract_base
+  GlueTriggerAnalyticsNavigatesContractBaseStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_contract_base_start'
+        Description: 'Conditional execute Navigates Contract Base'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesPoints.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesContractBase.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_contract_discount_rates_start, Predicate: analytics_navigates_contract_base, Run: analytics_navigates_contract_discount_rates
+  GlueTriggerAnalyticsNavigatesContractDiscountRatesStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_contract_discount_rates_start'
+        Description: 'Conditional execute Navigates Contract Discount Rates'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesContractBase.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesContractDiscountRates.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_tariff_rates_start, Predicate: analytics_navigates_contract_discount_rates, Run: analytics_navigates_tariff_rates
+  GlueTriggerAnalyticsNavigatesTariffRatesStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_tariff_rates_start'
+        Description: 'Conditional execute Navigates Tariff Rates'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesContractDiscountRates.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesTariffRates.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_nom_by_day_start, Predicate: analytics_navigates_tariff_rates, Run: analytics_navigates_nom_by_day
+  GlueTriggerAnalyticsNavigatesNomsByDayStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_nom_by_day_start'
+        Description: 'Conditional execute Navigates Noms By Day'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesTariffRates.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesNomsByDay.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_contract_rights_start, Predicate: analytics_navigates_nom_by_day, Run: analytics_navigates_contract_rights
+  GlueTriggerAnalyticsNavigatesContractRightsStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_contract_rights_start'
+        Description: 'Conditional execute Navigates Contract Rights'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesNomsByDay.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesContractRights.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_contract_mdq_adjust_start, Predicate: analytics_navigates_contract_rights, Run: analytics_navigates_contract_mdq_adjust
+  GlueTriggerAnalyticsNavigatesContractMDQAdjustStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_contract_mdq_adjust_start'
+        Description: 'Conditional execute Navigates Contract MDQ Adjust'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesContractRights.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesContractMDQAdjust.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_contract_prices_start, Predicate: analytics_navigates_contract_mdq_adjust_start, Run: analytics_navigates_contract_prices
+  GlueTriggerAnalyticsNavigatesContractPricesStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_contract_prices_start'
+        Description: 'Conditional execute Navigates Contract Prices'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesContractMDQAdjust.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesContractPrices.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_point_group_start, Predicate: analytics_navigates_contract_prices_start, Run: analytics_navigates_point_group
+  GlueTriggerAnalyticsNavigatesPointGroupStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_point_group_start'
+        Description: 'Conditional execute Navigates Point Group'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesContractPrices.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesPointGroup.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_point_group_item_start, Predicate: analytics_navigates_point_group_start, Run: analytics_navigates_point_group_item
+  GlueTriggerAnalyticsNavigatesPointGroupItemStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_point_group_item_start'
+        Description: 'Conditional execute Navigates Point Group Item'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesPointGroup.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesPointGroupItem.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_operational_available_capacity_start, Predicate: analytics_navigates_point_group_item_start, Run: analytics_navigates_operational_available_capacity
+  GlueTriggerAnalyticsNavigatesOperationalAvailableCapacityStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_operational_available_capacity_start'
+        Description: 'Conditional execute Navigates Operational Available Capcaity'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesPointGroupItem.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesOperationalAvailableCapacity.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_pointdata_start, Predicate: analytics_navigates_operational_available_capacity_start, Run: analytics_navigates_pointdata
+  GlueJobAnalyticsNavigatesPointDataStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_pointdata_start'
+        Description: 'Conditional execute Navigates Point Data'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesOperationalAvailableCapacity.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesPointData.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+# Trigger Name: analytics_navigates_short_term_contract_rate_start, Predicate: analytics_navigates_pointdata_start, Run: analytics__navigates_short_term_contract_rate_start
+  GlueJobAnalyticsNavigatesShortTermContractRateStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_navigates_short_term_contract_rate_start'
+        Description: 'Conditional execute Navigates short term contract rate'
+        TriggerType: CONDITIONAL
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsNavigatesDailySchedule.Outputs.WorkflowName
+        GlueJobNamePredicate1: !GetAtt GlueJobAnalyticsNavigatesPointData.Outputs.JobName
+        GlueJobNamePredicate1State: 'SUCCEEDED'
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsNavigatesShortTermContractRate.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Workflow Triggers TCPlus 
+#####################################
+
+# Trigger, Scheduled: analytics_tcplus_daily_schedule_start, At 04:15 AM, Run: analytics_tcplus_operational_available_capacity
+  GlueTriggerAnalyticsTCPlusDailyScheduleStart:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-trigger-jobtarget.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        Name: !Sub '${AppName}_tcplus_daily_schedule_start'
+        Description: 'Scheduled Daily TCPlus 0415 execute TCPlus OAC'
+        TriggerType: SCHEDULED
+        Schedule: "cron(15 10 * * ? *)"
+        WorkflowName: !GetAtt  GlueWorkFlowAnalyticsTCPlusDailySchedule.Outputs.WorkflowName
+        GlueJobNameTarget1: !GetAtt  GlueJobAnalyticsTCPlusOperationalAvailableCapacity.Outputs.JobName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Glue Job Scripts ANR DWN 
+#####################################
+
+## s3://analytics-glue-job-scripts	 analytics_anr_dwn_revenue
+  GlueJobAnalyticsAnrDwnRevenue:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_dwn_revenue"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_dwn_revenue.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}'
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrDwnSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3        
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_dwn_storage_activity_by_day'
+  GlueJobAnalyticsAnrDwnStorageDayActivity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_dwn_storage_activity_by_day"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_dwn_storage_activity_by_day.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrDwnGSMSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 analytics_anr_dwn_pal_daily_balances
+  GlueJobAnalyticsAnrDwnPalDailyBalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_dwn_pal_daily_balances"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_dwn_pal_daily_balances.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}'
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrDwnSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 analytics_anr_dwn_allocations
+  GlueJobAnalyticsAnrDwnAllocations:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_dwn_allocations"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_dwn_allocations.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}'
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrDwnSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Glue Job Scripts ANR UP 
+#####################################
+
+## s3://analytics-glue-job-scripts	 analytics_anr_up_contracts_firm_storage
+  GlueJobAnalyticsAnrUpContractsFirmStorage:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_contracts_firm_storage"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_contracts_firm_storage.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_contracts_firm_transport'
+  GlueJobAnalyticsAnrUpContractsFirmTransport:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_contracts_firm_transport"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_contracts_firm_transport.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_contracts_net_mdq'
+  GlueJobAnalyticsAnrUpContractsNetMDQ:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_contracts_net_mdq"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_contracts_net_mdq.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_locations'
+  GlueJobAnalyticsAnrUpLocations:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_locations"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_locations.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_locations_etsgroups'
+  GlueJobAnalyticsAnrUpLocationsETSGroups:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_locations_etsgroups"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_locations_etsgroups.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_monthly_imbalances'
+  GlueJobAnalyticsAnrUpMonthlyImbalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_monthly_imbalances"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"  
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_monthly_imbalances.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_noms_by_day'
+  GlueJobAnalyticsAnrUpNomsByDay:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_noms_by_day"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_noms_by_day.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_contracts_rates'
+  GlueJobAnalyticsAnrUpContractsRates:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_contracts_rates"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_contracts_rates.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_noms_by_day_oba'
+  GlueJobAnalyticsAnrUpNomsByDayOBA:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_noms_by_day_oba"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_noms_by_day_oba.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_operational_available_capacity'
+  GlueJobAnalyticsAnrUpOperationalAvailableCapacity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_operational_available_capacity"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_operational_available_capacity.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'ANR'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_operational_available_capacity_retry'
+  GlueJobAnalyticsAnrUpOperationalAvailableCapacityRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_operational_available_capacity_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_operational_available_capacity_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'ANR'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_noms_by_cycle'
+  GlueJobAnalyticsAnrUpNomsByCycle:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_noms_by_cycle"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_noms_by_cycle.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'ANR'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_noms_by_cycle_retry'
+  GlueJobAnalyticsAnrUpNomsByCycleRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_noms_by_cycle_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_noms_by_cycle_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Retry'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'ANR'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName  
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 analytics_anr_up_rate_schedule
+  GlueJobAnalyticsAnrUPRateSchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_rate_schedule"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_rate_schedule.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}'
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_anr_up_noms_by_cycle_adjustments'
+  GlueJobAnalyticsAnrUpNomsByCycleAdjustments:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_noms_by_cycle_adjustments"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_noms_by_cycle_adjustments.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'ANR'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 analytics_anr_up_oba_daily_imbalances
+  GlueJobAnalyticsAnrUpObaDailyImbalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_anr_up_oba_daily_imbalances"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_anr_up_oba_daily_imbalances.py'
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}'
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref AnrUpSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Glue Job Scripts Navigates
+#####################################
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_revenue'
+  GlueJobAnalyticsNavigatesRevenue:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_revenue"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_revenue.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_points'
+  GlueJobAnalyticsNavigatesPoints:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_points"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"    
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_points.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_contract_base'
+  GlueJobAnalyticsNavigatesContractBase:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_contract_base"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"   
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_contract_base.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_contract_discount_rates'
+  GlueJobAnalyticsNavigatesContractDiscountRates:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_contract_discount_rates"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"  
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_contract_discount_rates.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_tariff_rates'
+  GlueJobAnalyticsNavigatesTariffRates:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_tariff_rates"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_tariff_rates.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_noms_by_day'
+  GlueJobAnalyticsNavigatesNomsByDay:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_noms_by_day"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_noms_by_day.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_contract_rights'
+  GlueJobAnalyticsNavigatesContractRights:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_contract_rights"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_contract_rights.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_contract_mdq_adjust'
+  GlueJobAnalyticsNavigatesContractMDQAdjust:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_contract_mdq_adjust"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"  
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_contract_mdq_adjust.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_contract_prices'
+  GlueJobAnalyticsNavigatesContractPrices:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_contract_prices"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_contract_prices.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_point_group'
+  GlueJobAnalyticsNavigatesPointGroup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_point_group"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_point_group.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_point_group_item'
+  GlueJobAnalyticsNavigatesPointGroupItem:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_point_group_item"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_point_group_item.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_operational_available_capacity'
+  GlueJobAnalyticsNavigatesOperationalAvailableCapacity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_operational_available_capacity"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_operational_available_capacity.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_operational_available_capacity_retry'
+  GlueJobAnalyticsNavigatesOperationalAvailableCapacityRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_operational_available_capacity_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_operational_available_capacity_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_seg_sch_vol_by_cycle'
+  GlueJobAnalyticsNavigatesSegmentScheduledVolumesByCycle:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_seg_sch_vol_by_cycle"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_seg_sch_vol_by_cycle.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Test'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_seg_sch_vol_by_cycle_retry'
+  GlueJobAnalyticsNavigatesSegmentScheduledVolumesByCycleRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_seg_sch_vol_by_cycle_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_seg_sch_vol_by_cycle_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Retry'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_noms_by_cycle'
+  GlueJobAnalyticsNavigatesNomsByCycle:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_noms_by_cycle"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_noms_by_cycle.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName
+        Timeout: 60  
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_noms_by_cycle_retry'
+  GlueJobAnalyticsNavigatesNomsByCycleRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_noms_by_cycle_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_noms_by_cycle_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Retry'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_point_volumes'
+  GlueJobAnalyticsNavigatesPointVolumes:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_point_volumes"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"    
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_point_volumes.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_rate_schedule'
+  GlueJobAnalyticsNavigatesRateSchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_rate_schedule"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_rate_schedule.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_oba_daily_imbalances'
+  GlueJobAnalyticsNavigatesOBADailyImbalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_oba_daily_imbalances"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"    
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_oba_daily_imbalances.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NAV'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_pointdata'
+  GlueJobAnalyticsNavigatesPointData:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_pointdata"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"    
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_pointdata.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_navigates_short_term_contract_rate'
+  GlueJobAnalyticsNavigatesShortTermContractRate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_navigates_short_term_contract_rate"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"    
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_navigates_short_term_contract_rate.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NavigatesSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Glue Job Scripts TCPlus
+#####################################
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_operational_available_capacity'
+  GlueJobAnalyticsTCPlusOperationalAvailableCapacity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_operational_available_capacity"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_operational_available_capacity.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'TCPlus'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_operational_available_capacity_retry'
+  GlueJobAnalyticsTCPlusOperationalAvailableCapacityRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_operational_available_capacity_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_operational_available_capacity_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'TCPlus'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_noms_by_cycle'
+  GlueJobAnalyticsTCPlusNomsByCycle:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_noms_by_cycle"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_noms_by_cycle.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'TCPlus'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName  
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_noms_by_cycle_retry'
+  GlueJobAnalyticsTCPlusNomsByCycleRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_noms_by_cycle_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_noms_by_cycle_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Retry'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'GLG'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName
+        Argument17Key: '--sns_user_notification'
+        Argument17Value: 'true'
+        Argument18Key: '--sns_user_topic_name'
+        Argument18Value: !Ref SNSUserNotificationTopicName  
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_rate_schedule'
+  GlueJobAnalyticsTCPlusRateSchedule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_rate_schedule"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_rate_schedule.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'TCPlus'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_oba_daily_imbalances'
+  GlueJobAnalyticsTCPlusOBADailyImbalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_oba_daily_imbalances"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_oba_daily_imbalances.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'TCPlus'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_tcplus_pal_daily_balances'
+  GlueJobAnalyticsTCPlusPalDailyBalances:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_tcplus_pal_daily_balances"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_tcplus_pal_daily_balances.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref TCPlusSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'TCPlus'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Glue Job Scripts Bison 
+#####################################
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_revenue'
+  GlueJobAnalyticsBisonRevenue:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_revenue"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_revenue.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_contracts_net_mrq'
+  GlueJobAnalyticsBisonContractsNetMRQ:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_contracts_net_mrq"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_contracts_net_mrq.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_noms_by_day'
+  GlueJobAnalyticsBisonNomsByDay:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_noms_by_day"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"  
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_noms_by_day.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_contracts_caprel'
+  GlueJobAnalyticsBisonContractsCapRel:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_contracts_caprel"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_contracts_caprel.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_contracts_firm_new'
+  GlueJobAnalyticsBisonContractsFirmNew:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_contracts_firm_new"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_contracts_firm_new.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_contracts_it_new'
+  GlueJobAnalyticsBisonContractsITNew:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_contracts_it_new"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_contracts_it_new.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_bison_operational_available_capacity'
+  GlueJobAnalyticsBisonOperationalAvailableCapacity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_bison_operational_available_capacity"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_bison_operational_available_capacity.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref BisonSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+#####################################
+## Glue Job Scripts NB 
+#####################################
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_revenue'
+  GlueJobAnalyticsNBRevenue:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_revenue"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"  
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_revenue.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_contracts_net_mrq'
+  GlueJobAnalyticsNBContractsNetMRQ:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_contracts_net_mrq"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl" 
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_contracts_net_mrq.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_noms_by_day'
+  GlueJobAnalyticsNBNomsByDay:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_noms_by_day"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_noms_by_day.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_contracts_caprel'
+  GlueJobAnalyticsNBContractsCapRel:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_contracts_caprel"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"   
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_contracts_caprel.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_contracts_firm_new'
+  GlueJobAnalyticsNBContractsFirmNew:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_contracts_firm_new"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"   
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_contracts_firm_new.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        Timeout: 60
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+        
+## s3://analytics-glue-job-scripts	 'analytics_nb_contracts_it_new'
+  GlueJobAnalyticsNBContractsITNew:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_contracts_it_new"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"   
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_contracts_it_new.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_operational_available_capacity'
+  GlueJobAnalyticsNBOperationalAvailableCapacity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_operational_available_capacity"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"   
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_operational_available_capacity.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'not used'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'not used'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        MaxRetries: 3
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_noms_by_cycle'
+  GlueJobAnalyticsNBNomsByCycle:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_noms_by_cycle"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_noms_by_cycle.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Daily'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NB'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '0'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+
+## s3://analytics-glue-job-scripts	 'analytics_nb_noms_by_cycle_retry'
+  GlueJobAnalyticsNBNomsByCycleRetry:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job.template'
+      Parameters: 
+        Prefix: !Ref Prefix
+        AppName: !Ref AppName
+        Name: "analytics_nb_noms_by_cycle_retry"
+        GlueJobsRoleArn: !Ref GlueJobsRoleArn
+        JobCommand: "glueetl"
+        JobBookmarkOption: 'job-bookmark-disable'
+        ScriptLocation: !Sub 's3://${S3GlueScriptsBucketName}/analytics-glue-job-scripts/analytics_nb_noms_by_cycle_retry.py' 
+        S3TempDir:  !Sub 's3://${S3GlueJobTemporaryBucketName}' 
+        Argument1Key: '--s3_bucketkey'
+        Argument1Value: 'notused'
+        Argument2Key: '--s3_bucketname'
+        Argument2Value: 'notused'
+        Argument3Key: '--secret_name'
+        Argument3Value: !Ref NBSecretName
+        Argument4Key: '--cycle_id'
+        Argument4Value: '0'
+        Argument5Key: '--scheduled_time'
+        Argument5Value: 'Retry'
+        Argument6Key: '--base_load_date'
+        Argument6Value: '9999-01-01'
+        Argument7Key: '--redshift_database_name'
+        Argument7Value: !Ref GlueDatabaseParm
+        Argument8Key: '--redshift_connection'
+        Argument8Value: !Ref RedshiftConnectionName
+        Argument9Key: '--s3_log_file'
+        Argument9Value: !Ref S3GlueJobLoggingBucketName
+        Argument10Key: '--asset_name'
+        Argument10Value: 'NB'
+        Argument11Key: '--flow_date'
+        Argument11Value: '9999-01-01'        
+        Argument12Key: '--retry_cycle'
+        Argument12Value: '1'        
+        Argument13Key: '--redshift_role'
+        Argument13Value: !Ref RedshiftRoleParm        
+        Argument14Key: '--env_prefix'
+        Argument14Value: !Ref Prefix
+        Argument15Key: '--sns_topic_name'
+        Argument15Value: !Ref SNSNomsByCycleRetryTopicName
+        Argument16Key: '--sqs_queue_name'
+        Argument16Value: !Ref SQSNomsByCycleRetryQueueName 
+        RedshiftConnection: !Ref RedshiftConnectionName
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode

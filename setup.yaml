@@ -1,0 +1,3061 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Commercial Engine Base (S3, Lambdas, SQS, SNS, Events)'
+  
+Parameters:
+  Prefix:
+    Description: REQUIRED, Prefix for all named resources specific to this instantiation of this resource set.
+    Type: String
+    Default: "cloudfin" #"dra"
+    AllowedPattern: ^[a-z][a-z0-9\-]*$
+  AppName:
+    Description: Unique identifier for all resources, must be lowercase 
+    Type: String
+    Default: "analytics"
+  RedshiftSecret:
+    Description: Redshift secrets name.
+    Type: String
+    Default: "analytics-conn-info-redshift-dev"
+  PrivateSubnetA:
+    Description: Redshift subnet.
+    Type: String
+    Default: "subnet-0fd55ed2f1d21d189"
+  RedshiftSecurityGroup:
+    Description: Redshift securitygroup.
+    Type: String
+    Default: "sg-0ca498f2090b80f80"
+  RedshiftAddress:
+    Description: Redshift address.
+    Type: String
+    Default: "np-apce-redshift.c9zk5p0b3xrd.us-west-2.redshift.amazonaws.com"
+  RedshiftPort:
+    Description: Redshift port.
+    Type: String
+    Default: "5439"
+  RedshiftInstanceSecret:
+    Description: Redshift secret.
+    Type: String
+    Default: "analyticsadmin"
+  AcctNameAbbr:
+    Description: Abbreviate account for event rules to be less than 100 char. Dev, pre-prod and prod different
+    Type: String
+    Default: "ap-com-eng-dev"
+  RedshiftRoleParm:
+    Type: String
+    Default: "arn:aws:iam::886751638440:role/autopipe-NPAPCERedshiftMultinodeClust-RedshiftRole-S07GAT84KTTE"  
+  DisableEnableParm:
+    Type: String
+    Default: "DISABLED"  
+
+  ### Tagging V2.0 - START ###
+  tcapplication:
+    Description: CMDB Application 'Name'
+    Type: String
+    Default: Commercial Engine
+  tcappid:
+    Description: CMDB Application 'AID'
+    Type: String
+    Default: "A0361770"
+  tcprojectcode:
+    Description: TransCanada Project Code from SAP
+    Type: String
+    Default: "C.001215"
+  tcenvironment:
+    Type: String
+    Default: "Development"
+    AllowedValues: ["Demonstration", "Training", "Development", "QA", "Test", "Staging", "Production", "Disaster Recovery"]
+  ### Tagging V2.0 - END ###  
+
+Resources:
+
+########################### Glue Databases ###########################
+
+  GlueDatabaseAnalyticsGlueJobLogging:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-database.template'
+      Parameters:
+        ProjectName: !Sub '${Prefix}-glue-job-logging'
+        Description: S3 logging information from analytics glue jobs.
+
+########################### Redshift Connection ###########################
+  RedshiftConnection:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/redshift-connection.template'
+      Parameters:
+        Prefix: !Ref Prefix
+        SubnetId: !Ref PrivateSubnetA
+        SecurityGroupIds: !Ref RedshiftSecurityGroup
+        AvailabilityZone: 'us-west-2a'
+        JDBCConnectionURL: !Join [ '', [ 'jdbc:redshift://', !Ref RedshiftAddress, ':', !Ref RedshiftPort, '/', 'analytics-dev']]
+        RedshiftUsernameParameterName: !Join ['', [!Ref RedshiftInstanceSecret]]
+        RedshiftPasswordParameterName: !Join ['', [!Ref RedshiftInstanceSecret]]
+
+########################### SQS ###########################
+  AnalyticsTcplusContractRatesSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 5
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+  
+  AnalyticsTcplusContractsSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 5
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  AnalyticsTcplusContractsNetMDQSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 5
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  AnalyticsTcplusNomsByDaySQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 5
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  AnalyticsTcplusRevenueByChargeTypeSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 900
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  AnalyticsANRStorageRevenueSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 5
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+  
+  AnalyticsCompanyGroupsSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 5
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+  
+  AnalyticsAllAssetsSchCycleRetrySQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 30
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+  
+  AnalyticsThirdPartyEmailSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 900
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+  
+  AnalyticsDeadLetterQueueSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      MessageRetentionPeriod: 2700
+      VisibilityTimeout: 30
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  MySQSPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref AnalyticsTcplusContractRatesSQS
+        - !Ref AnalyticsTcplusContractsSQS
+        - !Ref AnalyticsTcplusContractsNetMDQSQS
+        - !Ref AnalyticsTcplusNomsByDaySQS
+        - !Ref AnalyticsTcplusRevenueByChargeTypeSQS        
+        - !Ref AnalyticsANRStorageRevenueSQS
+        - !Ref AnalyticsCompanyGroupsSQS
+        - !Ref AnalyticsAllAssetsSchCycleRetrySQS        
+        - !Ref AnalyticsThirdPartyEmailSQS
+        - !Ref AnalyticsDeadLetterQueueSQS
+
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:SendMessage
+            Effect: Allow
+            Principal: 
+              AWS: "*"
+            # Glue job source data s3 bucket
+            Resource: "*"
+            # Condition:
+            #   ArnLike: !Ref S3GlueSourceDataBucket      
+
+########################### S3 Buckets ###########################
+
+  S3BucketForTrailData:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-trail-data'
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  TrailBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref S3BucketForTrailData
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: "cloudtrail.amazonaws.com"
+          Action: "s3:GetBucketAcl"
+          Resource: !Sub "arn:aws:s3:::${S3BucketForTrailData}"
+        - Effect: Allow
+          Principal:
+            Service: "cloudtrail.amazonaws.com"
+          Action: "s3:PutObject"
+          Resource: !Sub "arn:aws:s3:::${S3BucketForTrailData}/AWSLogs/${AWS::AccountId}/*"
+          Condition:
+            StringEquals:
+              "s3:x-amz-acl": "bucket-owner-full-control"
+
+  S3GlueSourceDataBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-glue-job-source-data'
+      LifecycleConfiguration:
+        Rules:
+          - Id: cleanup_90_days
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 30
+            AbortIncompleteMultipartUpload: 
+              DaysAfterInitiation: 1
+      VersioningConfiguration:
+        Status: Suspended
+      NotificationConfiguration:
+        QueueConfigurations:
+          ######### REVENUE ##########
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/revenue/greatlakes/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusRevenueByChargeTypeSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/revenue/gtn/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusRevenueByChargeTypeSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/revenue/northbaja/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusRevenueByChargeTypeSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/revenue/tuscarora/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusRevenueByChargeTypeSQS.Arn 
+          ########## STORAGE ##########
+          - Event: s3:ObjectCreated:Put
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/anr_storage/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsANRStorageRevenueSQS.Arn 
+          - Event: s3:ObjectCreated:Post
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/anr_storage/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsANRStorageRevenueSQS.Arn
+           ########## COMPANY GROUPS ##########
+          - Event: s3:ObjectCreated:Put
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/companyhierarchy/'
+                  - Name: suffix
+                    Value: '.txt'
+            Queue: !GetAtt AnalyticsCompanyGroupsSQS.Arn 
+          - Event: s3:ObjectCreated:Post
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/companyhierarchy/'
+                  - Name: suffix
+                    Value: '.txt'
+            Queue: !GetAtt AnalyticsCompanyGroupsSQS.Arn 
+          ########## CONTRACTS NET MDQ ##########
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts_net_mdq/greatlakes/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsNetMDQSQS.Arn
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts_net_mdq/gtn/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsNetMDQSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts_net_mdq/northbaja/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsNetMDQSQS.Arn
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts_net_mdq/tuscarora/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsNetMDQSQS.Arn 
+          ########## CONTRACTS ##########
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts/greatlakes/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsSQS.Arn
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts/gtn/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsSQS.Arn
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts/northbaja/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contracts/tuscarora/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractsSQS.Arn 
+          ########## NOMS BY DAY ##########
+          # - Event: s3:ObjectCreated:*
+          #   Filter: 
+          #     S3Key:
+          #       Rules:
+          #         - Name: prefix
+          #           Value: 'data-submissions/tcplus/noms_by_day/greatlakes/'
+          #         - Name: suffix
+          #           Value: 'txt'
+          #   Queue: !GetAtt AnalyticsTcplusNomsByDaySQS.Arn
+          # - Event: s3:ObjectCreated:*
+          #   Filter: 
+          #     S3Key:
+          #       Rules:
+          #         - Name: prefix
+          #           Value: 'data-submissions/tcplus/noms_by_day/gtn/'
+          #         - Name: suffix
+          #           Value: 'txt'
+          #   Queue: !GetAtt AnalyticsTcplusNomsByDaySQS.Arn 
+          # - Event: s3:ObjectCreated:*
+          #   Filter: 
+          #     S3Key:
+          #       Rules:
+          #         - Name: prefix
+          #           Value: 'data-submissions/tcplus/noms_by_day/northbaja/'
+          #         - Name: suffix
+          #           Value: 'txt'
+          #   Queue: !GetAtt AnalyticsTcplusNomsByDaySQS.Arn 
+          # - Event: s3:ObjectCreated:*
+          #   Filter: 
+          #     S3Key:
+          #       Rules:
+          #         - Name: prefix
+          #           Value: 'data-submissions/tcplus/noms_by_day/tuscarora/'
+          #         - Name: suffix
+          #           Value: 'txt'
+          #   Queue: !GetAtt AnalyticsTcplusNomsByDaySQS.Arn 
+          ########## CONTRACT RATES ##########
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contract_rates/greatlakes/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractRatesSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contract_rates/gtn/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractRatesSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contract_rates/northbaja/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractRatesSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'data-submissions/tcplus/contract_rates/tuscarora/'
+                  - Name: suffix
+                    Value: 'txt'
+            Queue: !GetAtt AnalyticsTcplusContractRatesSQS.Arn
+          ########## Third Party Email ##########
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'thirdparty/customer_inventory/'
+                  - Name: suffix
+                    Value: 'csv'
+            Queue: !GetAtt AnalyticsThirdPartyEmailSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'thirdparty/delivery_volumes/'
+                  - Name: suffix
+                    Value: 'csv'
+            Queue: !GetAtt AnalyticsThirdPartyEmailSQS.Arn 
+          - Event: s3:ObjectCreated:*
+            Filter: 
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'thirdparty/noms/'
+                  - Name: suffix
+                    Value: 'csv'
+            Queue: !GetAtt AnalyticsThirdPartyEmailSQS.Arn 
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  S3AthenaResults:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-athena-results'
+      LifecycleConfiguration:
+        Rules:
+          - Id: cleanup_30_days
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 30
+            AbortIncompleteMultipartUpload: 
+              DaysAfterInitiation: 1
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  S3GlueJobDrivers:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-glue-job-drivers'
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  S3GlueJobLogging:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-glue-job-logging'
+      LifecycleConfiguration:
+        Rules:
+          - Id: cleanup_90_days
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 30
+            AbortIncompleteMultipartUpload: 
+              DaysAfterInitiation: 1
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  S3GlueJobPythonLibrary:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-glue-job-python-library'
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  S3GlueJobTemporary:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-glue-job-temporary'
+      LifecycleConfiguration:
+        Rules:
+          - Id: cleanup_30_days
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 30
+            AbortIncompleteMultipartUpload: 
+              DaysAfterInitiation: 1
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  S3GlueScriptsBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub '${Prefix}-glue-scripts-bucket'
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  SESAutomationBucket:
+    Type: "AWS::S3::Bucket"
+    DependsOn: SESAutomationSNS
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub '${Prefix}-ses-automation'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: cleanup_90_days
+            Status: Enabled
+            ExpirationInDays: 90
+            NoncurrentVersionExpirationInDays: 90
+            AbortIncompleteMultipartUpload: 
+              DaysAfterInitiation: 1
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Event: s3:ObjectCreated:*
+            Topic: !Ref SESAutomationSNS
+      Tags:
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+  SESAutomationBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SESAutomationBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: "ses.amazonaws.com"
+          Action: "s3:PutObject"
+          Resource: !Sub "arn:aws:s3:::${SESAutomationBucket}/*"
+          Condition:
+            StringEquals:
+              aws:Referer: '886751638440'
+
+########################### Glue Source Data User ###########################
+
+  IamGlueSourceDataUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub '${Prefix}-svc-GlueData-S3'
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+        - "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
+        - "arn:aws:iam::aws:policy/AmazonAthenaFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+      Policies:
+      - PolicyName: S3ListBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: 
+            - s3:ListBucket
+            Resource: 
+            - !Sub 'arn:aws:s3:::${S3GlueSourceDataBucket}'
+      - PolicyName: ManageS3Bucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: 
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+            Resource: 
+            - !Sub 'arn:aws:s3:::${S3GlueSourceDataBucket}/*'
+      Tags: 
+      - Key: 'tc:Name'
+        Value: !Ref AppName
+      - Key: 'tc:Application'
+        Value: !Ref tcapplication
+      - Key: 'tc:AppId'
+        Value: !Ref tcappid
+      - Key: 'tc:Environment'
+        Value: !Ref tcenvironment
+      - Key: 'tc:ProjectCode'
+        Value: !Ref tcprojectcode
+
+################################# S3 Acces Key ###################################
+##                       Unique to Dev and Preprod.                             ##
+  # GlueSourceDataUserDevAccessKey:
+  #   Type: AWS::IAM::AccessKey
+  #   DependsOn: IamGlueSourceDataUser
+  #   Properties:
+  #     UserName: !Ref IamGlueSourceDataUser
+
+########################### Lambdas and associated IAM ###########################
+
+  SecurityGroupHttps:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Prefix}-${AppName}-https'
+      GroupDescription: https ingress
+      VpcId: !ImportValue VpcId
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+        Description: All Egress allowed
+        IpProtocol: -1
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        Description: All Egress allowed
+        IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+  SecurityGroupHttpsIngressSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroupHttps
+      Description: Ingress all from Self
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref SecurityGroupHttps
+
+  AnalyticsLambdaGlueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal: 
+            Service: 
+              - "lambda.amazonaws.com"
+          Action: 
+            - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: allowS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:CreateBucket
+              Resource: 'arn:aws:s3:::*'
+        - PolicyName: allowLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Resource:
+              - '*'
+        - PolicyName: allowSecretManager
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - secretsmanager:GetRandomPassword
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+              Resource: "*"
+        - PolicyName: allowLambda
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action:
+              - lambda:InvokeFunction
+              Resource: '*'
+        - PolicyName: allowSQS
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - sqs:*
+              Effect: Allow
+              Resource: "*"
+        - PolicyName: GlueServiceRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - glue:*
+              - s3:GetBucketLocation
+              - s3:ListBucket
+              - s3:ListAllMyBuckets
+              - s3:GetBucketAcl
+              - ec2:DescribeVpcEndpoints
+              - ec2:DescribeRouteTables
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeVpcAttribute
+              - iam:ListRolePolicies
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - cloudwatch:PutMetricData
+              Resource:
+              - '*'
+            - Effect: Allow
+              Action:
+              - ec2:CreateTags
+              - ec2:DeleteTags
+              Condition:
+                ForAllValues:StringEquals:
+                  aws:TagKeys:
+                  - aws-glue-service-resource
+              Resource:
+              - '*'
+
+  AnalyticsLambdaSESRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal: 
+            Service: 
+              - "lambda.amazonaws.com"
+          Action: 
+            - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: allowS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:CreateBucket
+              Resource: 'arn:aws:s3:::*'
+        - PolicyName: allowLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Resource:
+              - '*'
+        - PolicyName: allowSecretManager
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - secretsmanager:GetRandomPassword
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+              Resource: "*"
+        - PolicyName: allowLambda
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action:
+              - lambda:InvokeFunction
+              Resource: '*'
+        - PolicyName: allowSQS
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - sqs:*
+              Effect: Allow
+              Resource: "*"
+        - PolicyName: allowSES
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - ses:*
+              Effect: Allow
+              Resource: "*"
+        - PolicyName: GlueServiceRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - glue:*
+              - s3:GetBucketLocation
+              - s3:ListBucket
+              - s3:ListAllMyBuckets
+              - s3:GetBucketAcl
+              - ec2:DescribeVpcEndpoints
+              - ec2:DescribeRouteTables
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeVpcAttribute
+              - iam:ListRolePolicies
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - cloudwatch:PutMetricData
+              Resource:
+              - '*'
+            - Effect: Allow
+              Action:
+              - ec2:CreateTags
+              - ec2:DeleteTags
+              Condition:
+                ForAllValues:StringEquals:
+                  aws:TagKeys:
+                  - aws-glue-service-resource
+              Resource:
+              - '*'
+
+
+########################### Layers ###########################
+
+  Psycopg2Layer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.7
+      ContentUri: lambdas/managed_layers/psycopg2
+      Description: This layer contains the aws version of psycopg2.
+      LayerName: !Sub '${Prefix}-psycopg2-layer'
+
+  PandasLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.7
+      ContentUri: lambdas/managed_layers/pandas
+      Description: This layer contains Pandas.
+      LayerName: !Sub '${Prefix}-pandas-layer'
+
+  NumpyLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.7
+      ContentUri: lambdas/managed_layers/numpy
+      Description: This layer contains Numpy.
+      LayerName: !Sub '${Prefix}-numpy-layer'
+
+###################### TCPlus Lambda #########################
+
+  AnalyticsTcplusContractRatesLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_tcplus_contract_rates
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsTcplusContractRatesSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_tcplus_contract_rates'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          proc_name: !Sub 'analytics_tcplus_contract_rates'
+          scheduled_time: '05:00 AM'
+          secret_name: !Ref RedshiftSecret          
+          redshift_role: !Ref RedshiftRoleParm
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  # AnalyticsTcplusNomsByDayLambda:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: lambdas/analytics_tcplus_noms_by_day
+  #     Events:
+  #       SqsEvent:
+  #         Type: SQS
+  #         Properties:
+  #           Queue: !GetAtt AnalyticsTcplusNomsByDaySQS.Arn
+  #           BatchSize: 10
+  #     Description: !Sub '${Prefix}; analytics_tcplus_noms_by_day'
+  #     EventInvokeConfig:
+  #       DestinationConfig:
+  #         OnFailure:
+  #           Type: Lambda
+  #           Destination: !GetAtt LambdaErrorLambda.Arn
+  #     Layers:
+  #       - !Ref Psycopg2Layer
+  #     Environment:
+  #       Variables:
+  #         proc_name: !Sub 'analytics_tcplus_noms_by_day'
+  #         scheduled_time: '05:00 AM'
+  #         secret_name: !Ref RedshiftSecret
+  #         redshift_role: !Ref RedshiftRoleParm
+  #     Handler: app.lambda_handler
+  #     MemorySize: 1024
+  #     Runtime: python3.7
+  #     Role:
+  #       Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+  #     Timeout: 900
+  #     VpcConfig:
+  #       SecurityGroupIds:
+  #         - !Sub 'sg-0c235f672b7276677'
+  #         - !Sub 'sg-04872494527fed98f'
+  #         - !Sub 'sg-06910c118ecde1ed8'
+  #       SubnetIds:
+  #         - !ImportValue PublicSubnetA
+  #     Tags:
+  #       'tc:Name': !Ref AppName
+  #       'tc:Application': !Ref tcapplication
+  #       'tc:AppId': !Ref tcappid
+  #       'tc:Environment': !Ref tcenvironment
+  #       'tc:ProjectCode': !Ref tcprojectcode
+        
+  AnalyticsTcplusContractsNetMDQambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_tcplus_contracts_net_mdq
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsTcplusContractsNetMDQSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_tcplus_contracts_net_mdq'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          proc_name: !Sub 'analytics_tcplus_contracts_netmdq'
+          scheduled_time: '05:00 AM'
+          secret_name: !Ref RedshiftSecret
+          redshift_role: !Ref RedshiftRoleParm
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  AnalyticsTcplusContracts:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_tcplus_contracts
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsTcplusContractsSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_tcplus_contracts'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          proc_name: !Sub 'analytics_tcplus_contracts'
+          scheduled_time: '05:00 AM'
+          secret_name: !Ref RedshiftSecret
+          redshift_role: !Ref RedshiftRoleParm
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  AnalyticsTcplusRevenueByChargeType:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_tcplus_revenuebychargetype
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsTcplusRevenueByChargeTypeSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_tcplus_revenuebychargetype'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          proc_name: !Sub 'analytics_tcplus_revenuebychargetype'
+          scheduled_time: '05:00 AM'
+          secret_name: !Ref RedshiftSecret
+          redshift_role: !Ref RedshiftRoleParm
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+###################### Storage Lambda #########################
+
+  AnalyticsAnrStorageDataSubmission:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_anr_storage_data_submission
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsANRStorageRevenueSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_anr_storage_data_submission'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          scheduled_time: '05:00 AM'
+          secret_name: !Ref RedshiftSecret
+          redshift_role: !Ref RedshiftRoleParm
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  AnalyticsAnrCompanyGroupsDataSubmission:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_company_groups_data_submission
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsCompanyGroupsSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_company_groups_data_submission'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          scheduled_time: '05:00 AM'
+          secret_name: !Ref RedshiftSecret
+          redshift_role: !Ref RedshiftRoleParm
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+################## ANR Entitlements Lambda ######################
+
+  AnrApalertsEntitlements:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_anr_apalerts_entitlements/
+      Description: !Sub '${Prefix}; analytics_anr_apalerts_entitlements_lambda'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+        - !Ref PandasLayer
+        - !Ref NumpyLayer
+      Environment:
+        Variables:
+          meterId: "null"
+          saveresults: true
+          secret_name: !Ref RedshiftSecret
+      Handler: app.lambda_handler
+      MemorySize: 1408
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+############### ANR Hyraulic Summary Lambda #################
+
+  AnrApalertsHydraulicSummary:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_anr_apalerts_hydraulic_summary/
+      Description: !Sub '${Prefix}; analytics_anr_apalerts_hydraulic_summary_lambda'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          secret_name: !Ref RedshiftSecret
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+################## Marketing Release Lambda ######################
+
+  AnalyticsCoreSPMarketingRelease:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_core_sp_marketing_release/
+      Description: !Sub '${Prefix}; analytics_core_sp_marketing_release_lambda'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Events:
+        createAPIEndpoint:
+          Type: Api
+          Properties:
+            Path: /modify
+            Method: any
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          secret_name: !Ref RedshiftSecret
+      Handler: app.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+################## Segment Scheduled Volume Lambda ######################
+
+  AnalyticsNavigatesSegmentScheduledVolumesByCycle:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_navigates_seg_sch_vol_by_cycle
+      Description: !Sub '${Prefix}; analytics_navigates_seg_sch_vol_by_cycle'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [AnalyticsLambdaGlueRole, Arn]
+      Runtime: python3.7
+      Timeout: 3
+      Environment:
+        Variables:
+          glue_job_prefix: !Sub '${Prefix}-analytics_navigates_seg_sch_vol_by_cycle'
+          cycle_id: "null"
+          scheduled_time: "null"
+          asset_name: "null"
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+############## All Assets Segment Scheduled Volume Lambda ###############
+
+  AnalyticsAllAssetsSegmentScheduledVolumesByCycle:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_all_assets_seg_sch_vol_by_cycle
+      Description: !Sub '${Prefix}; analytics_all_assets_seg_sch_vol_by_cycle'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [AnalyticsLambdaGlueRole, Arn]
+      Runtime: python3.7
+      Timeout: 3
+      Environment:
+        Variables:
+          glue_job_prefix: !Sub '${Prefix}-'
+          cycle_id: "null"
+          scheduled_time: "null"
+          asset_name: "null"
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+################## All Assets Noms By Cycle Lambda #################
+
+  AnalyticsAllAssetsNomsByCycle:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_all_assets_noms_by_cycle
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Description: !Sub '${Prefix}; analytics_all_assets_noms_by_cycle'
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [AnalyticsLambdaGlueRole, Arn]
+      Runtime: python3.7
+      Timeout: 3
+      Environment:
+        Variables:
+          glue_job_prefix: !Sub '${Prefix}-'
+          cycle_id: "null"
+          scheduled_time: "null"
+          asset_name: "null"
+          flow_date: "null"
+          retry_cycle: "0"
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+########### All Assets Scheduled Cycle Retry Lambda #############
+
+  AnalyticsAllAssetsSchCycleRetry:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_all_assets_sch_cycle_retry
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsAllAssetsSchCycleRetrySQS.Arn
+            BatchSize: 10
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Description: !Sub '${Prefix}; analytics_all_sch_cycle_retry'
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [AnalyticsLambdaGlueRole, Arn]
+      Runtime: python3.7
+      Timeout: 3
+      Environment:
+        Variables:
+          glue_job_prefix: !Sub '${Prefix}-'
+          cycle_id: "null"
+          scheduled_time: "null"
+          asset_name: "null"
+          flow_date: "null"
+          retry_cycle: "0"
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+############### Third Pary Email #################
+
+  AnalyticsThirdPartyEmail:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_third_party_email
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AnalyticsThirdPartyEmailSQS.Arn
+            BatchSize: 10
+      Description: !Sub '${Prefix}; analytics_third_party_email_lambda'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          secret_name: !Ref RedshiftSecret
+          scheduled_time: "09:00 AM"
+          environment_prefix: !Sub '${Prefix}-'
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+############ Maintenance Quality Check #################
+
+  AnalyticsMaintenanceQualityCheck:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/analytics_maintenance_quality_check/
+      Description: !Sub '${Prefix}; analytics_maintenance_quality_check_lambda'
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: Lambda
+            Destination: !GetAtt LambdaErrorLambda.Arn
+      Layers:
+        - !Ref Psycopg2Layer
+      Environment:
+        Variables:
+          secret_name: !Ref RedshiftSecret
+          scheduled_time: "06:15 AM"
+          environment_prefix: !Sub '${Prefix}-'
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: [ AnalyticsLambdaGlueRole, Arn ]
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - !Sub 'sg-0c235f672b7276677'
+          - !Sub 'sg-04872494527fed98f'
+          - !Sub 'sg-06910c118ecde1ed8'
+        SubnetIds:
+          - !ImportValue PublicSubnetA
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+############################ Cloud Watch Events ###############################
+
+############# ANR Hydraulic Summary Scheduler #################
+
+  AnrApalertsHydraulicSummaryScheduler:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for apalerts for hydraulics summary."
+      Name: !Sub '${AcctNameAbbr}-analytics_apalert_hyd_sum'
+      ScheduleExpression: cron(12 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [AnrApalertsHydraulicSummary, Arn]
+          Id: analytics_anr_apalerts_hydraulic_summary
+  
+  AnrApalertsHydraulicSummarySchedulerEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnrApalertsHydraulicSummary, Arn ]
+        SourceArn: !GetAtt AnrApalertsHydraulicSummaryScheduler.Arn
+
+################ ANR Entitlements Scheduler ###################
+
+  AnrApalertsIndEntitlementsScheduler:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for apalerts Industrial Data Load."
+      Name: !Sub '${AcctNameAbbr}-analytics_apalert_ind_ent'
+      ScheduleExpression: cron(10 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [AnrApalertsEntitlements, Arn]
+          Id: analytics_anr_apalerts_entitlements 
+          Input: |
+            {"input_type":"Ind"}
+
+  AnrApalertsIndEntitlementsSchedulerEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnrApalertsEntitlements, Arn ]
+        SourceArn: !GetAtt AnrApalertsIndEntitlementsScheduler.Arn
+
+  AnrApalertsIntEntitlementsScheduler:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for apalerts Interconnect Data Load."
+      Name: !Sub '${AcctNameAbbr}-analytics_apalert_int_ent' 
+      ScheduleExpression: cron(10 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnrApalertsEntitlements, Arn ]
+          Id: analytics_anr_apalerts_entitlements
+          Input: |
+            {"input_type":"Int"}
+
+  AnrApalertsIntEntitlementsSchedulerEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnrApalertsEntitlements, Arn ]
+        SourceArn: !GetAtt AnrApalertsIntEntitlementsScheduler.Arn
+
+  AnrApalertsLdcEntitlementsScheduler:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for apalerts LDC Data Load."
+      Name: !Sub '${AcctNameAbbr}-analytics_apalert_ldc_ent'
+      ScheduleExpression: cron(10 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnrApalertsEntitlements, Arn ]
+          Id: analytics_anr_apalerts_entitlements
+          Input: |
+            {"input_type":"Ldc"}
+
+  AnrApalertsLdcEntitlementsSchedulerEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnrApalertsEntitlements, Arn ]
+        SourceArn: !GetAtt AnrApalertsLdcEntitlementsScheduler.Arn
+
+  AnrApalertsPwrpltEntitlementsScheduler:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for apalerts Power Plant Data Load."
+      Name: !Sub '${AcctNameAbbr}-analytics_apalert_pp_ent'
+      ScheduleExpression: cron(10 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnrApalertsEntitlements, Arn ]
+          Id: analytics_anr_apalerts_entitlements
+          Input: |
+            {"input_type":"PwrPlt"}
+
+  AnrApalertsPwrpltEntitlementsSchedulerEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnrApalertsEntitlements, Arn ]
+        SourceArn: !GetAtt AnrApalertsPwrpltEntitlementsScheduler.Arn
+
+################ Navigates Segement Volume Scheduler #############
+
+  NavigatesSegmentSchedVolumesByCycleScheduler00:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 00"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_00'      
+      State: DISABLED
+      ScheduleExpression: cron(15 17 * * ? *)
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"0", "scheduled_time":"09:55 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler00EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler00.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler0:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 0"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_0'
+      ScheduleExpression: cron(40 23 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"0", "scheduled_time":"05:40 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler0EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler0.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler1:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 1"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_1'
+      ScheduleExpression: cron(40 03 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"1", "scheduled_time":"09:40 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler1EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler1.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler2:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 2"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_2'
+      ScheduleExpression: cron(40 19 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"2", "scheduled_time":"01:40 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler2EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler2.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler3:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 3"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_3'
+      ScheduleExpression: cron(10 00 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"3", "scheduled_time":"06:10 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler3EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler3.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler4:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 4"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_4'
+      ScheduleExpression: cron(40 04 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"4", "scheduled_time":"10:40 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler4EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler4.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler5:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 5"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_5'
+      ScheduleExpression: cron(05 21 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"5", "scheduled_time":"03:05 PM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler5EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler5.Arn
+
+  NavigatesSegmentSchedVolumesByCycleScheduler7:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Segment Scheduled Volumes By Cycle = 7"
+      Name: !Sub '${AcctNameAbbr}-analytics_nav_seg_vol_7'
+      ScheduleExpression: cron(05 10 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+          Id: analytics_navigates_seg_sch_vol_by_cycle
+          Input: |
+            {"cycle_id":"7", "scheduled_time":"04:05 AM", "asset_name":"NAV"}
+
+  NavigatesSegmentSchedVolumesByCycleScheduler7EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsNavigatesSegmentScheduledVolumesByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesSegmentSchedVolumesByCycleScheduler7.Arn
+
+###################### ANR UP Noms By Cycle ######################
+
+  ANRUPNomsByCycleScheduler00:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 00"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_00'
+      ScheduleExpression: cron(00 09 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"1", "scheduled_time":"Test", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler00EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler00.Arn
+
+  ANRUPNomsByCycleScheduler1:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 1"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_1'
+      ScheduleExpression: cron(25 23 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"1", "scheduled_time":"05:25 PM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler1EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler1.Arn
+
+  ANRUPNomsByCycleScheduler2:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 2"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_2'
+      ScheduleExpression: cron(25 03 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"2", "scheduled_time":"09:25 PM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler2EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler2.Arn
+
+  ANRUPNomsByCycleScheduler3:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 3"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_3'
+      ScheduleExpression: cron(25 19 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"3", "scheduled_time":"01:25 PM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler3EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler3.Arn
+
+  ANRUPNomsByCycleScheduler4:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 4"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_4'
+      ScheduleExpression: cron(55 23 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"4", "scheduled_time":"05:55 PM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler4EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler4.Arn
+
+  ANRUPNomsByCycleScheduler5:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 5"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_5'
+      ScheduleExpression: cron(25 15 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"5", "scheduled_time":"09:25 AM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler5EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler5.Arn
+
+  ANRUPNomsByCycleScheduler7:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 7"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_7'
+      ScheduleExpression: cron(55 11 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"7", "scheduled_time":"05:55 AM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler7EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler7.Arn
+
+  ANRUPNomsByCycleScheduler8:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for ANR UP Noms By Cycle = 8"
+      Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_cycle_8'
+      ScheduleExpression: cron(25 04 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"8", "scheduled_time":"10:25 PM", "asset_name":"ANR"}
+
+  ANRUPNomsByCycleScheduler8EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt ANRUPNomsByCycleScheduler8.Arn
+
+###################### Navigates Noms By Cycle ######################
+
+  NavigatesNomsByCycleScheduler00:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 00"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_00'
+      ScheduleExpression: cron(00 09 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"1", "scheduled_time":"Test", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler00EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler00.Arn
+
+  NavigatesNomsByCycleScheduler0:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 0"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_0'
+      ScheduleExpression: cron(30 23 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"0", "scheduled_time":"05:30 PM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler0EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler0.Arn
+
+  NavigatesNomsByCycleScheduler1:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 1"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_1'
+      ScheduleExpression: cron(00 04 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"1", "scheduled_time":"10:00 PM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler1EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler1.Arn
+
+  NavigatesNomsByCycleScheduler2:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 2"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_2'
+      ScheduleExpression: cron(30 19 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"2", "scheduled_time":"01:30 PM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler2EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler2.Arn
+
+  NavigatesNomsByCycleScheduler3:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 3"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_3'
+      ScheduleExpression: cron(00 00 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"3", "scheduled_time":"06:00 PM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler3EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler3.Arn
+
+  NavigatesNomsByCycleScheduler4:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 4"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_4'
+      ScheduleExpression: cron(30 05 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"4", "scheduled_time":"11:30 PM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler4EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler4.Arn
+
+  NavigatesNomsByCycleScheduler5:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 5"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_5'
+      ScheduleExpression: cron(00 21 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"5", "scheduled_time":"03:00 PM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler5EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler5.Arn
+
+  NavigatesNomsByCycleScheduler7:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Navigates Noms By Cycle = 7"
+      Name: !Sub '${AcctNameAbbr}-analytics_navigates_noms_by_cycle_7'
+      ScheduleExpression: cron(00 10 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"7", "scheduled_time":"04:00 AM", "asset_name":"NAV"}
+
+  NavigatesNomsByCycleScheduler7EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt NavigatesNomsByCycleScheduler7.Arn
+
+###################### Event TCPLUS Noms By Cycle ######################
+
+  OtherAssetsNomsByCycleScheduler00:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Other Assets Noms By Cycle = 00"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_00'
+      ScheduleExpression: cron(45 21 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"0", "scheduled_time":"Test", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler00EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler00.Arn
+
+  OtherAssetsNomsByCycleScheduler1:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Other Assets Noms By Cycle = 1"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_1'
+      ScheduleExpression: cron(30 23 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"1", "scheduled_time":"05:30 PM", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler1EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler1.Arn
+
+  OtherAssetsNomsByCycleScheduler2:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Other Assets Noms By Cycle = 2"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_2'
+      ScheduleExpression: cron(30 19 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"2", "scheduled_time":"01:30 PM", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler2EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler2.Arn
+
+  OtherAssetsNomsByCycleScheduler3:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Other Assets Noms By Cycle = 3"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_3'
+      ScheduleExpression: cron(50 23 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"3", "scheduled_time":"05:50 PM", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler3EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler3.Arn
+
+  OtherAssetsNomsByCycleScheduler4:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Other Assets Noms By Cycle = 4"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_4'
+      ScheduleExpression: cron(30 03 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"4", "scheduled_time":"09:30 PM", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler4EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler4.Arn
+
+  OtherAssetsNomsByCycleScheduler5:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Other Assets Noms By Cycle = 5"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_5'
+      ScheduleExpression: cron(30 04 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"5", "scheduled_time":"10:30 PM", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler5EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler5.Arn
+
+  OtherAssetsNomsByCycleScheduler99:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for TCPlus Noms By Cycle = 99"
+      Name: !Sub '${AcctNameAbbr}-analytics_other_assets_noms_by_cycle_99'
+      ScheduleExpression: cron(30 10 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+          Id: analytics_all_assets_noms_by_cycle
+          Input: |
+            {"cycle_id":"99", "scheduled_time":"04:30 AM", "asset_name":"All"}
+
+  OtherAssetsNomsByCycleScheduler99EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsAllAssetsNomsByCycle, Arn ]
+        SourceArn: !GetAtt OtherAssetsNomsByCycleScheduler99.Arn
+
+################## Event Manitenance Quality Check ##################
+
+  AnalyticsMaintenanceQualityCheckScheduler01:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute Lambda for Manitenance and Quality Checks"
+      Name: !Sub '${AcctNameAbbr}-analytics_maintenance_quality_check_01'
+      ScheduleExpression: cron(15 12 * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt [ AnalyticsMaintenanceQualityCheck, Arn ]
+          Id: analytics_maintenance_quality_check
+          Input: |
+            {"scheduled_time":"06:15 AM"}
+
+  AnalyticsMaintenanceQualityCheckScheduler01EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        FunctionName: !GetAtt [ AnalyticsMaintenanceQualityCheck, Arn ]
+        SourceArn: !GetAtt AnalyticsMaintenanceQualityCheckScheduler01.Arn
+
+###################### Event ANR UP Noms by Day ######################
+
+  # AnalyticsANRUPNomsByDayScheduler01:
+  #   Type: AWS::Events::Rule
+  #   Properties:
+  #     Description: "Execute Lambda for ANR UP Noms By Day"
+  #     Name: !Sub '${AcctNameAbbr}-analytics_anr_up_noms_by_day_01'
+  #     ScheduleExpression: cron(00 * * * ? *)
+  #     State: ENABLED
+  #     Targets:
+  #       - Arn: !GetAtt [ AnalyticsANRUPNomsByDay, Arn ]
+  #         Id: analytics_anr_up_noms_by_day
+  #         Input: |
+  #           {"scheduled_time":"05:30 AM"}
+
+  # AnalyticsANRUPNomsByDayScheduler01EventPermission:
+  #   Type: AWS::Lambda::Permission
+  #   Properties:
+  #       Action: lambda:InvokeFunction
+  #       Principal: events.amazonaws.com
+  #       FunctionName: !GetAtt [ AnalyticsANRUPNomsByDay, Arn ]
+  
+########################### API Key #################################
+###      This is unqiue between the dev and pre-prod stacks       ###
+
+  AnalyticsCoreAPIKey:    
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: "Sharepoint2RSKey-dev"
+      Description: "API Key V1"
+      Enabled: "true"
+      
+########################### SNS and Events ##########################
+
+  AnalyticsDailyScheduleSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:  !Sub '${Prefix}-analytics-daily-schedule'
+      DisplayName: !Sub '${Prefix}-analytics-daily-schedule'
+      Subscription: 
+        - Endpoint: john_alverson@tcenergy.com
+          Protocol: EMAIL
+        - Endpoint: mubashir_mohammed@tcenergy.com
+          Protocol: EMAIL
+        - Endpoint: '+16015696827'
+          Protocol: SMS
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  AnalyticsUserNotificationSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:  !Sub '${Prefix}-analytics-user-notification'
+      DisplayName: !Sub '${Prefix}-analytics-user-notification'
+      Subscription: 
+        - Endpoint: john_alverson@tcenergy.com
+          Protocol: EMAIL
+        - Endpoint: '+16015696827'
+          Protocol: SMS
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  SESAutomationSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:  !Sub '${Prefix}-sns-automation'
+      DisplayName: !Sub '${Prefix}-sns-automation'
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  AnalyticsSourceExtractReTrySNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:  !Sub '${Prefix}-analytics-source-extract-retry'
+      DisplayName: !Sub '${Prefix}-analytics-source-extract-retry'
+      Subscription: 
+        - Endpoint: john_alverson@tcenergy.com
+          Protocol: EMAIL
+        - Endpoint: '+16015696827'
+          Protocol: SMS
+      Tags: 
+        - Key: 'tc:Name'
+          Value: !Ref AppName
+        - Key: 'tc:Application'
+          Value: !Ref tcapplication
+        - Key: 'tc:AppId'
+          Value: !Ref tcappid
+        - Key: 'tc:Environment'
+          Value: !Ref tcenvironment
+        - Key: 'tc:ProjectCode'
+          Value: !Ref tcprojectcode
+
+  GlueJobErrorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal: 
+            Service: 
+              - "lambda.amazonaws.com"
+          Action: 
+            - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: allowLogs
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              Resource: '*'
+        - PolicyName: allowSNS
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action:
+                - "SNS:ListSubscriptionsByTopic"
+                - "SNS:Publish"
+              Resource: '*'
+
+  GlueJobErrorLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/glue-job-error-handling
+      Description: !Sub '${Prefix}; glue-job-error-lambda'
+      Events:
+        EBRule:
+          Type: EventBridgeRule
+          Properties:
+            Target:
+              Id: LambdaFunction
+            Pattern:
+              source:
+                - aws.glue
+              detail-type:
+                - "Glue Job State Change"
+              detail:
+                state:
+                  - FAILED
+                  - TIMEOUT
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [GlueJobErrorLambdaRole, Arn]
+      Runtime: python3.7
+      Timeout: 10
+      Environment:
+        Variables:
+          SNS_TOPIC: !Ref AnalyticsDailyScheduleSNS
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  LambdaErrorLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/lambda-error-handling
+      Description: !Sub '${Prefix}; lambda-error-handling'
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [GlueJobErrorLambdaRole, Arn]
+      Runtime: python3.7
+      Timeout: 10
+      Environment:
+        Variables:
+          SNS_TOPIC: !Ref AnalyticsDailyScheduleSNS
+          PREFIX: !Ref Prefix
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  SESAutomationLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/ses-automation
+      Description: !Sub '${Prefix}; ses-automation-lambda'
+      Events:
+        SNS1:
+          Type: SNS
+          Properties:
+            Topic:
+              Ref: SESAutomationSNS
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: 
+        Fn::GetAtt: [AnalyticsLambdaGlueRole, Arn]
+      Runtime: python3.7
+      Timeout: 10
+      Environment:
+        Variables:
+          environment_prefix: !Sub '${Prefix}-'
+      Tags:
+        'tc:Name': !Ref AppName
+        'tc:Application': !Ref tcapplication
+        'tc:AppId': !Ref tcappid
+        'tc:Environment': !Ref tcenvironment
+        'tc:ProjectCode': !Ref tcprojectcode
+
+  AnalyticsDailyScheduleSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - "sns:Publish"
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+              - "SNS:Receive"
+            Resource: '*'
+      Topics: 
+        - !Ref AnalyticsDailyScheduleSNS
+
+  AnalyticsUserNotificationSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - "sns:Publish"
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+              - "SNS:Receive"
+            Resource: '*'
+      Topics: 
+        - !Ref AnalyticsUserNotificationSNS
+
+  SESAutomationSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - "sns:Publish"
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+              - "SNS:Receive"
+            Resource: '*'
+      Topics: 
+        - !Ref SESAutomationSNS
+
+  AnalyticsSourceExtractReTrySNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - "sns:Publish"
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+              - "SNS:Receive"
+            Resource: '*'
+      Topics: 
+        - !Ref AnalyticsSourceExtractReTrySNS
+        
+###################### Role for Glue Jobs ########################
+
+  GlueJobRole: ## This role is specific to the s3 bucket for the env mapping 
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'library-templates/glue/glue-job-role.template'
+      Parameters:
+        S3BucketName: !Ref S3GlueScriptsBucket
+        tcapplication: !Ref tcapplication
+        tcappid: !Ref tcappid 
+        tcenvironment: !Ref tcenvironment
+        tcprojectcode: !Ref tcprojectcode
+        
+##### SES ###
+  SESAutomationRuleSet:
+    Type: 'AWS::SES::ReceiptRuleSet'
+    Properties: 
+      RuleSetName: !Sub '${Prefix}-ses-automation'
+  ANRSNOMSRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      Rule:
+        Name: 'anrs_noms'
+        Recipients:
+          - "anrs_noms@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "noms/anrs"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  BLSNOMSRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref ANRSNOMSRule
+      Rule:
+        Name: 'bls_noms'
+        Recipients:
+          - "bls_noms@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "noms/bls"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  BLSCustomerInventoryRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref BLSNOMSRule
+      Rule:
+        Name: 'bls_customer_inventory'
+        Recipients:
+          - "bls_ci@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "customer_inventory/bls"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  ANRSCustomerInventoryRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref BLSCustomerInventoryRule
+      Rule:
+        Name: 'anrs_customer_inventory'
+        Recipients:
+          - "anrs_ci@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "customer_inventory/anrs"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  EatonRapidsCustomerInventoryRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref ANRSCustomerInventoryRule
+      Rule:
+        Name: 'eatonrapids_customer_inventory'
+        Recipients:
+          - "er_ci@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "customer_inventory/eatonrapids"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  EatonRapidsNomsRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref EatonRapidsCustomerInventoryRule
+      Rule:
+        Name: 'eaton_rapids_noms'
+        Recipients:
+          - "er_noms@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "noms/eatonrapids"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  IroquoisDelVolsRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref EatonRapidsNomsRule
+      Rule:
+        Name: 'iroquois_del_vols'
+        Recipients:
+          - "iroquois_deliveryvolumes@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "delivery_volumes/iroquois"
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+  ApMdlRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      After: !Ref IroquoisDelVolsRule
+      Rule:
+        Name: 'ap_dev_mdl'
+        Recipients:
+          - "ap_dev_mdl_noreply@acct-886751638440.tceautomatedservicestest.com"
+        Actions:
+          - S3Action:
+              BucketName: !Ref SESAutomationBucket
+              ObjectKeyPrefix: "ap_mdl"
+          - LambdaAction:
+              FunctionArn: "arn:aws:lambda:us-west-2:886751638440:function:autopipe-analytics-dev-ap-mdls-ParseEmail-d1PSII9gs8N8"
+              InvocationType: "Event"
+              
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SESAutomationRuleSet
+      
+Outputs:
+  GlueJobsRoleArn:
+    Value: !GetAtt GlueJobRole.Outputs.GlueJobsRoleArn
+
+  S3GlueScriptsBucketName:
+    Value: !Ref S3GlueScriptsBucket
+
+  S3GlueSourceDataBucketName:
+    Value: !Ref S3GlueSourceDataBucket
+
+  S3GlueJobLoggingBucketName:
+    Value: !Ref S3GlueJobLogging
+  
+  S3GlueJobTemporaryBucketName:
+    Value: !Ref S3GlueJobTemporary
+
+  S3GlueJobDriversBucketName:
+    Value: !Ref S3GlueJobDrivers
+
+  SQSNomsByCycleRetryQueueName:
+    Value: !Ref AnalyticsAllAssetsSchCycleRetrySQS
+
+  SNSNomsByCycleRetryTopicName:
+    Value: !Ref AnalyticsSourceExtractReTrySNS
+
+  SNSUserNotificationTopicName:
+    Value: !Ref AnalyticsUserNotificationSNS
+  
+  ################# Glue User and Access/Secret Key #########################
+
+  GlueSourceDataUserDevName:
+    Description: Username for the Dev glue source User
+    Value: !Ref IamGlueSourceDataUser
+    Export:
+      Name: GlueSourceDataUserDevName
+ 
+  # GlueSourceDataUserDevAccessKey:
+  #   Description: Access Key for Dev glue source user
+  #   Value: !Ref GlueSourceDataUserDevAccessKey
+  #   Export:
+  #     Name: GlueSourceDataUserDevAccessKey
+ 
+  # GlueSourceDataUserDevSecretKey:
+  #   Description: Secret Key for Dev glue source user
+  #   Value: !GetAtt GlueSourceDataUserDevAccessKey.SecretAccessKey
+  #   Export:
+  #     Name: GlueSourceDataUserDevSecretKey
+
+########################## Rest API ##########################
+
+## Dev does not use RestAPIAddress
